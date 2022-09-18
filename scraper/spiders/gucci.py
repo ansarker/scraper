@@ -53,19 +53,17 @@ class GucciSpider(scrapy.Spider):
             links.append(link.get_attribute("href"))
         
         for url in links:
-            yield scrapy.Request(url=url, headers=self.headers, dont_filter=True)
-        self.driver.quit()
+            self.driver.get(url)
+            product_name = self.driver.find_elements_by_xpath('//h1[@class="product-name product-detail-product-name"]')
+            imgs = self.driver.find_elements_by_xpath('//div[@class="slick-track"]/div/picture/source[@data-image-size="standard-retina"]')
+            img_urls = [img.get_property("srcset") for img in imgs]
+            yield scrapy.Request(url=url, callback=self.parse_gucci, headers=self.headers, meta={"product_name": product_name[0].text, "img_urls": img_urls}, dont_filter=True)
 
-    def parse(self, response):
+    def parse_gucci(self, response):
         item = GucciItem()
-
-        product_name = response.css('h1.product-name.product-detail-product-name::text').get()
-        img_url = response.xpath('//div/div/picture/source[@data-image-size="standard-retina"]/@srcset').extract()
-
-        item['product_name'] = product_name
+        item['product_name'] = response.meta["product_name"]
         item['category'] = self.category
-        item['img_url'] = img_url
-
+        item['url'] = response.url
+        item['img_url'] = response.meta["img_urls"]
         print(item)
-        
         return item
